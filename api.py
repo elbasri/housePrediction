@@ -93,14 +93,14 @@ def predict_price():
     encoded_img = base64.b64encode(img.getvalue()).decode('utf-8')
 
     # Save predicted_price and encoded_img to MySQL database
-    conn = mysql.connector.connect(**db_config)
-    cursor = conn.cursor()
-    insert_query = "INSERT INTO predictions (predicted_price, graph_image) VALUES (%s, %s)"
-    cursor.execute(insert_query, (predicted_price, encoded_img))
-    conn.commit()
-    prediction_id = cursor.lastrowid
-    cursor.close()
-    conn.close()
+    #conn = mysql.connector.connect(**db_config)
+    #cursor = conn.cursor()
+    #insert_query = "INSERT INTO predictions (predicted_price, graph_image) VALUES (%s, %s)"
+    #cursor.execute(insert_query, (predicted_price, encoded_img))
+    #conn.commit()
+    #prediction_id = cursor.lastrowid
+    #cursor.close()
+    #conn.close()
 
 
     response = jsonify({'predicted_price': predicted_price})
@@ -109,7 +109,7 @@ def predict_price():
     
     return jsonify({
         'predicted_price': predicted_price,
-        'prediction_id': prediction_id  # Use this ID to retrieve data from PHP
+        'encoded_img': encoded_img
     })
 
 def generate_graph(new_df, xyears):
