@@ -55,7 +55,7 @@ if ($result->num_rows > 0) {
         $data_predict = json_decode($result_predict, true);
 
         // Update manage_properties with predicted_price and encoded_img
-        $prediction_id = $data_predict["prediction_id"];
+        //$prediction_id = $data_predict["prediction_id"];
         $update_sql = "UPDATE manage_properties SET predicted_price = {$data_predict['predicted_price']}, graph_image = '{$data_predict['encoded_img']}' WHERE id = {$row['id']}";
         $conn->query($update_sql);
     }
