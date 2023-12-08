@@ -18,10 +18,10 @@ import base64
 
 # MySQL connection details
 db_config = {
-    'user': 'stats_projet',
-    'password': 'NCR123stats***',
+    'user': 'smartsouk',
+    'password': 'NACER123smartsouk***',
     'host': 'localhost',
-    'database': 'pred'
+    'database': 'smartsouk'
 }
 
 app = Flask(__name__)
