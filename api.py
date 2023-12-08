@@ -1,81 +1,166 @@
-import numpy as np
-import pandas as pd
 from flask import Flask, request, jsonify, send_file
-from sklearn.linear_model import LinearRegression
-from sklearn.model_selection import train_test_split
-from sklearn.ensemble import GradientBoostingRegressor
-from sklearn.preprocessing import scale
-from sklearn.decomposition import PCA
+import pandas as pd
 import matplotlib.pyplot as plt
+import random
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LinearRegression
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.metrics import mean_squared_error
+from sklearn.impute import SimpleImputer
+from joblib import dump, load
+import os
 import io
+import mysql.connector
+import base64
+
+
+# MySQL connection details
+db_config = {
+    'user': 'stats_projet',
+    'password': 'NCR123stats***',
+    'host': 'localhost',
+    'database': 'pred'
+}
 
 app = Flask(__name__)
 
-linear_reg_predictions_history = []
-gradient_boost_predictions_history = []
+# Path for the saved model
+model_file = 'house_price_model.joblib'
 
-data = pd.read_csv('data.csv')
+# Load or train the model
+if os.path.exists(model_file):
+    model = load(model_file)
+else:
+    # Load your data - ensure 'data.csv' is the correct path
+    df = pd.read_csv('data.csv')
 
-features = ['bedrooms', 'bathrooms', 'sqft_living', 'sqft_lot', 'floors', 'waterfront', 'view',
-            'condition', 'grade', 'sqft_above', 'sqft_basement', 'yr_built', 'yr_renovated',
-            'zipcode', 'lat', 'long', 'sqft_living15', 'sqft_lot15']
+    # Define categorical and numeric features
+    categorical_features = ['Zone', 'typeOfProperty', 'condition']
+    numeric_features = ['construction_price_in_m_sqr', 'bedrooms', 'bathrooms', 
+                        'sqft_living', 'sqft_lot', 'floors', 'waterfront', 
+                        'view', 'yr_built']
 
-labels = data['price']
+    # Create imputers and preprocessing pipeline
+    numeric_imputer = SimpleImputer(strategy='mean')
+    categorical_imputer = SimpleImputer(strategy='most_frequent')
+    preprocessor = ColumnTransformer(
+        transformers=[
+            ('num', Pipeline(steps=[('imputer', numeric_imputer), ('scaler', StandardScaler())]), numeric_features),
+            ('cat', Pipeline(steps=[('imputer', categorical_imputer), ('encoder', OneHotEncoder(handle_unknown='ignore'))]), categorical_features)
+        ]
+    )
 
-conv_dates = [1 if values == 2014 else 0 for values in data.date]
-data['date'] = conv_dates
+    # Define the model pipeline
+    model = Pipeline(steps=[
+        ('preprocessor', preprocessor),
+        ('regressor', LinearRegression())
+    ])
 
-train_data = data[features]
+    # Train the model
+    X = df.drop('price', axis=1)
+    y = df['price']
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    model.fit(X_train, y_train)
 
-x_train, x_test, y_train, y_test = train_test_split(train_data, labels, test_size=0.10, random_state=2)
+    # Save the model
+    dump(model, model_file)
 
-reg = LinearRegression()
-reg.fit(x_train, y_train)
-
-clf = GradientBoostingRegressor(n_estimators=400, max_depth=5, min_samples_split=2,
-                                learning_rate=0.1, loss='squared_error')
-clf.fit(x_train, y_train)
-
-pca = PCA()
-pca.fit_transform(scale(train_data))
+    # Evaluate the model
+    y_pred = model.predict(X_test)
+    mse = mean_squared_error(y_test, y_pred)
+    print("Mean Squared Error:", mse)
 
 @app.route('/predict', methods=['POST'])
-def predict():
-    data_input = request.get_json()
+def predict_price():
+    data = request.get_json()
 
-    input_features = [data_input.get(feature) for feature in features]
+    # Create new data frame from the request data
+    new_df = pd.DataFrame({key: [value] for key, value in data.items()})
 
-    input_df = pd.DataFrame([input_features], columns=features)
+    # Predict the price
+    predicted_price = model.predict(new_df)[0]
 
-    linear_reg_prediction = reg.predict(input_df)[0]
-    gradient_boost_prediction = clf.predict(input_df)[0]
+    # Generate the graph based on the new data
+    graph = generate_graph(new_df, 10)
 
-    linear_reg_predictions_history.append(linear_reg_prediction)
-    gradient_boost_predictions_history.append(gradient_boost_prediction)
+    # Save the graph as a PNG image to a BytesIO object
+    img = io.BytesIO()
+    graph.savefig(img, format='png', bbox_inches='tight')
+    img.seek(0)
 
+    encoded_img = base64.b64encode(img.getvalue()).decode('utf-8')
+
+    # Save predicted_price and encoded_img to MySQL database
+    conn = mysql.connector.connect(**db_config)
+    cursor = conn.cursor()
+    insert_query = "INSERT INTO predictions (predicted_price, graph_image) VALUES (%s, %s)"
+    cursor.execute(insert_query, (predicted_price, encoded_img))
+    conn.commit()
+    prediction_id = cursor.lastrowid
+    cursor.close()
+    conn.close()
+
+
+    response = jsonify({'predicted_price': predicted_price})
+    response.headers.set('Content-Type', 'image/png')
+    response.set_data(img.getvalue())
+    
     return jsonify({
-        'linear_reg_prediction': linear_reg_prediction,
-        'gradient_boost_prediction': gradient_boost_prediction
+        'predicted_price': predicted_price,
+        'prediction_id': prediction_id  # Use this ID to retrieve data from PHP
     })
 
-@app.route('/history')
-def history():
-    plt.plot(linear_reg_predictions_history, label='Linear Regression')
-    plt.plot(gradient_boost_predictions_history, label='Gradient Boosting')
-    plt.xlabel('Prediction Number')
-    plt.ylabel('Price Prediction')
-    plt.title('Prediction History')
-    plt.legend()
+def generate_graph(new_df, xyears):
+    # Convert numeric columns to float if they are not already
+    numeric_columns = ['construction_price_in_m_sqr', 'bedrooms', 'bathrooms', 'sqft_living', 'sqft_lot', 'floors', 'waterfront', 'view', 'yr_built']
+    new_df[numeric_columns] = new_df[numeric_columns].astype(float)
 
-    image_data = io.BytesIO()
-    plt.savefig(image_data, format='png')
-    image_data.seek(0)
-    
-    plt.clf()
-    plt.close()
+    # Generate and return a list of predictions for 1 to xyears
+    predicted_prices = []
+    years = list(range(1, xyears + 1))  # Generate predictions for 1 to xyears
 
-    return send_file(image_data, mimetype='image/png', as_attachment=True, download_name='prediction_history.png')
+    # Possible annual increase rates including negative values
+    annual_increase_rates = [-0.002, -0.001, 0, 0.001, 0.02, 0.03, 0.04]
+
+    for future_year_adjustment in years:
+        # Randomly select an annual increase rate for each year
+        annual_increase_rate = random.choice(annual_increase_rates)
+
+        adjusted_construction_price = new_df['construction_price_in_m_sqr'] * (1 + annual_increase_rate) ** future_year_adjustment
+        adjusted_year_built = new_df['yr_built'] + future_year_adjustment
+
+        new_data = {
+            'Zone': new_df['Zone'],
+            'typeOfProperty': new_df['typeOfProperty'],
+            'condition': new_df['condition'],
+            'construction_price_in_m_sqr': adjusted_construction_price,
+            'bedrooms': new_df['bedrooms'],
+            'bathrooms': new_df['bathrooms'],
+            'sqft_living': new_df['sqft_living'],
+            'sqft_lot': new_df['sqft_lot'],
+            'floors': new_df['floors'],
+            'waterfront': new_df['waterfront'],
+            'view': new_df['view'],
+            'yr_built': adjusted_year_built
+        }
+
+        # Convert to DataFrame
+        new_df = pd.DataFrame(new_data)
+
+        # Making prediction with the model
+        predicted_price = model.predict(new_df)[0]
+        predicted_prices.append(predicted_price)
+
+    # Plotting the results
+    plt.figure(figsize=(10, 6))
+    plt.plot(years, predicted_prices, marker='o')
+    plt.title('Predicted House Prices Over the Next ' + str(xyears) + ' Years')
+    plt.xlabel('Years into the Future')
+    plt.ylabel('Predicted Price')
+    plt.grid(True)
+    return plt
 
 if __name__ == '__main__':
-    print("API is running and listening on http://127.0.0.1:5000/")
     app.run(debug=True)
