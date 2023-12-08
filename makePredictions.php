@@ -35,7 +35,7 @@ if ($result->num_rows > 0) {
         ];
 
         // Include property ID in the input data
-        $input_data['property_id'] = $row['id'];
+        //$input_data['property_id'] = $row['id'];
 
         // Prepare the input data for the API call
         $json_data = json_encode($input_data);
