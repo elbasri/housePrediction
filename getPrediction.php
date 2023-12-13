@@ -111,9 +111,13 @@
         $result_predict = file_get_contents('http://127.0.0.1:5000/predict', false, $context_predict);
         $data_predict = json_decode($result_predict, true);
 
-        var_dump($data_predict);
-        $prediction_id = $data_predict["prediction_id"];
+        echo "<br>Predicted Price: ".round($data_predict["predicted_price"], 2)."<br>";
+        echo "<img src='data:image/png;base64," . $data_predict["encoded_img"] . "' />";
+        //var_dump($data_predict);
+        //$prediction_id = $data_predict["prediction_id"];
         // MySQL connection details
+
+/*
 $host = "localhost";
 $username = "stats_projet";
 $password = "NCR123stats***";
@@ -135,13 +139,13 @@ if ($result->num_rows > 0) {
         echo "Predicted Price: " . $row["predicted_price"] . "<br>";
         
         // Display the graph image
-        echo "<img src='data:image/png;base64," . $row["graph_image"] . "' />";
+        ";
     }
 } else {
     echo "0 results";
 }
-
-$conn->close();
+*/
+//$conn->close();
  
     }
     ?>
