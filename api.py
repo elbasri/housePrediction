@@ -15,7 +15,7 @@ import io
 import mysql.connector
 import base64
 
-
+# تفاصيل اتصال قاعدة البيانات MySQL
 # MySQL connection details
 db_config = {
     'user': 'smartsouk',
@@ -26,22 +26,27 @@ db_config = {
 
 app = Flask(__name__)
 
+# مسار الملف النموذجي المحفوظ
 # Path for the saved model
 model_file = 'house_price_model.joblib'
 
+# تحميل النموذج أو تدريبه
 # Load or train the model
 if os.path.exists(model_file):
     model = load(model_file)
 else:
+    # تحميل البيانات - تأكد من أن 'data.csv' هو المسار الصحيح
     # Load your data - ensure 'data.csv' is the correct path
     df = pd.read_csv('data.csv')
 
+    # تحديد الميزات الفئوية والعددية
     # Define categorical and numeric features
     categorical_features = ['Zone', 'typeOfProperty', 'condition']
     numeric_features = ['construction_price_in_m_sqr', 'bedrooms', 'bathrooms', 
                         'sqft_living', 'sqft_lot', 'floors', 'waterfront', 
                         'view', 'yr_built']
 
+    # إنشاء المُدخلات وسلسلة معالجة ما قبل النمذجة
     # Create imputers and preprocessing pipeline
     numeric_imputer = SimpleImputer(strategy='mean')
     categorical_imputer = SimpleImputer(strategy='most_frequent')
@@ -52,21 +57,25 @@ else:
         ]
     )
 
+    # تعريف سلسلة النموذج
     # Define the model pipeline
     model = Pipeline(steps=[
         ('preprocessor', preprocessor),
         ('regressor', LinearRegression())
     ])
 
+    # تدريب النموذج
     # Train the model
     X = df.drop('price', axis=1)
     y = df['price']
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
     model.fit(X_train, y_train)
 
+    # حفظ النموذج
     # Save the model
     dump(model, model_file)
 
+    # تقييم النموذج
     # Evaluate the model
     y_pred = model.predict(X_test)
     mse = mean_squared_error(y_test, y_pred)
@@ -76,15 +85,19 @@ else:
 def predict_price():
     data = request.get_json()
 
+    # إنشاء إطار بيانات جديد من بيانات الطلب
     # Create new data frame from the request data
     new_df = pd.DataFrame({key: [value] for key, value in data.items()})
 
+    # التنبؤ بالسعر
     # Predict the price
     predicted_price = model.predict(new_df)[0]
 
+    # توليد الرسم البياني استنادًا إلى البيانات الجديدة
     # Generate the graph based on the new data
     graph = generate_graph(new_df, 10)
 
+    # حفظ الرسم البياني كصورة PNG في كائن BytesIO
     # Save the graph as a PNG image to a BytesIO object
     img = io.BytesIO()
     graph.savefig(img, format='png', bbox_inches='tight')
@@ -92,6 +105,7 @@ def predict_price():
 
     encoded_img = base64.b64encode(img.getvalue()).decode('utf-8')
 
+    # حفظ predicted_price و encoded_img في قاعدة بيانات MySQL
     # Save predicted_price and encoded_img to MySQL database
     #conn = mysql.connector.connect(**db_config)
     #cursor = conn.cursor()
@@ -101,7 +115,6 @@ def predict_price():
     #prediction_id = cursor.lastrowid
     #cursor.close()
     #conn.close()
-
 
     response = jsonify({'predicted_price': predicted_price})
     response.headers.set('Content-Type', 'image/png')
@@ -113,18 +126,22 @@ def predict_price():
     })
 
 def generate_graph(new_df, xyears):
+    # تحويل الأعمدة العددية إلى float إذا لم تكن كذلك بالفعل
     # Convert numeric columns to float if they are not already
     numeric_columns = ['construction_price_in_m_sqr', 'bedrooms', 'bathrooms', 'sqft_living', 'sqft_lot', 'floors', 'waterfront', 'view', 'yr_built']
     new_df[numeric_columns] = new_df[numeric_columns].astype(float)
 
+    # توليد وإرجاع قائمة التنبؤات لمدة 1 إلى xyears
     # Generate and return a list of predictions for 1 to xyears
     predicted_prices = []
     years = list(range(1, xyears + 1))  # Generate predictions for 1 to xyears
 
+    # معدلات الزيادة السنوية المحتملة بما في ذلك القيم السالبة
     # Possible annual increase rates including negative values
     annual_increase_rates = [-0.002, -0.001, 0, 0.001, 0.02, 0.03, 0.04]
 
     for future_year_adjustment in years:
+        # اختيار معدل زيادة سنوي عشوائي لكل عام
         # Randomly select an annual increase rate for each year
         annual_increase_rate = random.choice(annual_increase_rates)
 
@@ -146,13 +163,16 @@ def generate_graph(new_df, xyears):
             'yr_built': adjusted_year_built
         }
 
+        # تحويل إلى إطار بيانات
         # Convert to DataFrame
         new_df = pd.DataFrame(new_data)
 
+        # التنبؤ باستخدام النموذج
         # Making prediction with the model
         predicted_price = model.predict(new_df)[0]
         predicted_prices.append(predicted_price)
 
+    # رسم النتائج
     # Plotting the results
     plt.figure(figsize=(10, 6))
     plt.plot(years, predicted_prices, marker='o')
