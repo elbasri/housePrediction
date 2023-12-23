@@ -34,8 +34,13 @@
     python api.py
 
 سيكون الان متاحًا على
-http://localhost:5000
-### نقاط الإتصال:
+
+
+
+    http://localhost:5000
+    
+### نقطة الإتصال:
+
 POST /predict
 
     الإدخال: بيانات تحتوي على تفاصيل المنزل.. مثال:
@@ -72,19 +77,21 @@ POST /predict
  أنشئ فرعًا جديدًا لميزة أو إصلاح خطأ ما:
 
 
-   git checkout -b feature-name
+
+    git checkout -b feature-name
 
 قم بإجراء التغييرات الخاصة بك وقم بالاختبار بشكل جيد.
 
 قم بعمل رفع لتغييراتك:
 
 
-   git commit -m "وصف لتغييراتك"
+
+    git commit -m "وصف لتغييراتك"
 
 قم برفع التغييرات إلى النسخة الخاصة بك:
 
 
-   git push origin feature-name
+    git push origin feature-name
 
  افتح طلب سحب إلى المشروع الرئيسي.
 
