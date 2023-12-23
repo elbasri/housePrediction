@@ -15,15 +15,6 @@ import io
 import mysql.connector
 import base64
 
-# تفاصيل اتصال قاعدة البيانات MySQL
-# MySQL connection details
-db_config = {
-    'user': 'smartsouk',
-    'password': 'NACER123smartsouk***',
-    'host': 'localhost',
-    'database': 'smartsouk'
-}
-
 app = Flask(__name__)
 
 # مسار الملف النموذجي المحفوظ
@@ -105,16 +96,6 @@ def predict_price():
 
     encoded_img = base64.b64encode(img.getvalue()).decode('utf-8')
 
-    # حفظ predicted_price و encoded_img في قاعدة بيانات MySQL
-    # Save predicted_price and encoded_img to MySQL database
-    #conn = mysql.connector.connect(**db_config)
-    #cursor = conn.cursor()
-    #insert_query = "INSERT INTO predictions (predicted_price, graph_image) VALUES (%s, %s)"
-    #cursor.execute(insert_query, (predicted_price, encoded_img))
-    #conn.commit()
-    #prediction_id = cursor.lastrowid
-    #cursor.close()
-    #conn.close()
 
     response = jsonify({'predicted_price': predicted_price})
     response.headers.set('Content-Type', 'image/png')
