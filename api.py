@@ -96,6 +96,19 @@ def predict_price():
 
     encoded_img = base64.b64encode(img.getvalue()).decode('utf-8')
 
+    
+    
+    # بعد إضافة ملف makePrediction.php 
+    # لم نعد بحاجة لتخزين البيانات هنا، حيث يقوم الملف أعلاه بتخزينها بعد استرجاعها من هنا.. وهذا هو ما سيحدث في بيئة عمل فعلية
+    # لكن، لازال بإمكانك عمل تخزين لها في قاعدة مايسكيول بإلغاء تعليق الجزء التالي من الرمز البرمجي
+    #conn = mysql.connector.connect(**db_config)
+    #cursor = conn.cursor()
+    #insert_query = "INSERT INTO predictions (predicted_price, graph_image) VALUES (%s, %s)"
+    #cursor.execute(insert_query, (predicted_price, encoded_img))
+    #conn.commit()
+    #prediction_id = cursor.lastrowid
+    #cursor.close()
+    #conn.close()
 
     response = jsonify({'predicted_price': predicted_price})
     response.headers.set('Content-Type', 'image/png')
@@ -152,6 +165,7 @@ def generate_graph(new_df, xyears):
         # Making prediction with the model
         predicted_price = model.predict(new_df)[0]
         predicted_prices.append(predicted_price)
+
 
     # رسم النتائج
     # Plotting the results
