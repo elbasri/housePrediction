@@ -22,7 +22,7 @@
 
 1. **استنسخ النموذج:**
 
-   git clone https://github.com/elbasri/housePrediction.git
+    git clone https://github.com/elbasri/housePrediction.git
 
 أنشئ قاعدة بيانات ماسكيول بالاسم smartsouk مع الجداول المناسبة.
 
